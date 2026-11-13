@@ -255,13 +255,19 @@ textarea { resize: vertical; min-height: 64px; }
 .gaplist li { color: var(--ink-2); padding-left: 14px; position: relative; }
 .gaplist li::before { content: "?"; position: absolute; left: 0; color: var(--accent); font-family: var(--mono); font-size: 0.8rem; }
 .est { font-size: 0.86rem; color: var(--ink-2); margin-top: 10px; font-weight: 600; }
-.mini { width: 100%; border-collapse: collapse; font-size: 0.79rem; table-layout: fixed; }
-.mini th { text-align: left; font-weight: 600; color: var(--ink-3); padding: 0 8px 6px 0; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
-.mini th:nth-child(1) { width: 34%; }
-.mini th:nth-child(2) { width: 26%; }
-.mini td { padding: 7px 8px 7px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); vertical-align: top; }
-.mini td:first-child { color: var(--ink); font-weight: 600; }
-.mini td:nth-child(2) { white-space: nowrap; font-size: 0.74rem; }
+.mini { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+/* The sidebar is too narrow for three columns of real note text, so each
+   neighbour reads as a stacked row instead. */
+.mini thead { display: none; }
+.mini, .mini tbody, .mini tr, .mini td { display: block; }
+.mini tr { padding: 9px 0; border-top: 1px solid var(--line-2); }
+.mini tr:first-child { border-top: 0; padding-top: 0; }
+.mini td { padding: 0; border: 0; color: var(--ink-2); }
+.mini td:first-child { color: var(--ink); font-weight: 600; font-size: 0.84rem; }
+.mini td:nth-child(2) {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3);
+  margin: 1px 0 3px; white-space: nowrap;
+}
 
 /* ---------- handoff ---------- */
 .handoff-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.86rem; padding: 5px 0; }
