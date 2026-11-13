@@ -1,9 +1,35 @@
 import { SCENARIO_LIST, getScenario } from "./scenarios.js";
 import { CHECKS, WHY } from "./checks.js";
 import { buildBrief, buildHandoff } from "./engine.js";
+import { t, setLang, getLang } from "./i18n.js";
+import { MS_SCENARIO, MS_CHECK_LABEL_DETAIL, MS_OPTION, MS_WHY, MS_UNRESOLVED, MS_PRIOR_VISIT, MS_NEIGHBOUR, MS_NEIGHBOUR_NOTE } from "./ms.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const isMs = () => getLang() === "ms";
+
+// Scenario fields carry English prose; Malay versions live in ms.js keyed by id.
+const sc = (s) => {
+  const m = isMs() && MS_SCENARIO[s.id];
+  return {
+    ...s,
+    windows: m?.windows ?? s.windows,
+    address: m?.address ?? s.address,
+    accessNotes: m?.accessNotes ?? s.accessNotes,
+    safety: m?.safety ?? s.safety,
+    reported: m?.report ?? s.report.reported,
+    prevVisits: s.prevVisits.map((v) => ({
+      ...v,
+      found: m?.prevFound?.[v.conclusion] ?? MS_PRIOR_VISIT[v.found] ?? v.found,
+    })),
+    customers: s.customers.map((c) => ({
+      ...c,
+      line: (isMs() && MS_NEIGHBOUR[c.line]) || c.line,
+      role: (isMs() && MS_NEIGHBOUR[c.role]) || c.role,
+      note: (isMs() && MS_NEIGHBOUR_NOTE[c.note]) || c.note,
+    })),
+  };
+};
 
 const state = {
   scenarioId: SCENARIO_LIST[0].id,
@@ -11,10 +37,12 @@ const state = {
   profile: { repeats: "unknown", tries: "none", field: "" },
   brief: null,
   handoff: null,
+  view: "start",
 };
 
 /* ---------- navigation ---------- */
 function show(id) {
+  state.view = id;
   document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== id; });
   document.querySelectorAll(".step").forEach((b) => {
     const on = b.dataset.goto === id;
@@ -38,13 +66,13 @@ const sel = $("#scenario");
 sel.innerHTML = SCENARIO_LIST.map((s) => `<option value="${s.id}">${esc(s.id)} · ${esc(s.bins)}</option>`).join("");
 
 function previewReport() {
-  const s = getScenario(sel.value);
+  const s = sc(getScenario(sel.value));
   $("#report-preview").innerHTML = `
     <h4>${esc(s.customer)}</h4>
     <p class="mono" style="font-size:.8rem;color:var(--ink-3)">${esc(s.phone)}</p>
-    <p style="margin-top:10px">${esc(s.report.reported)}</p>
-    <p style="font-size:.82rem;color:var(--ink-3)"><strong style="color:var(--ink)">Prior visits:</strong> ${s.prevVisits.length ? s.prevVisits.map((v) => esc(v.id)).join(", ") : "none"}</p>
-    <p style="font-size:.82rem;color:var(--ink-3)"><strong style="color:var(--ink)">Line:</strong> ${esc(s.line.label)}</p>`;
+    <p style="margin-top:10px">${esc(s.reported)}</p>
+    <p style="font-size:.82rem;color:var(--ink-3)"><strong style="color:var(--ink)">${esc(t("start.prior"))}:</strong> ${s.prevVisits.length ? s.prevVisits.map((v) => esc(v.id)).join(", ") : esc(t("start.none"))}</p>
+    <p style="font-size:.82rem;color:var(--ink-3)"><strong style="color:var(--ink)">${esc(t("start.line"))}:</strong> ${esc(s.line.label)}</p>`;
 }
 sel.addEventListener("change", previewReport);
 
@@ -64,20 +92,30 @@ $("#report-form").addEventListener("submit", (e) => {
 });
 
 /* ---------- 2. checks ---------- */
+const checkText = (c) => {
+  const m = isMs() && MS_CHECK_LABEL_DETAIL[c.id];
+  return { label: m?.label ?? c.label, detail: m?.detail ?? c.detail };
+};
+const optionText = (c, o) => (isMs() && MS_OPTION[c.id]?.[o.v]) || o.label;
+const whyText = (id, v) => (isMs() ? MS_WHY : WHY)[id][v];
+
 function renderChecks() {
-  $("#checklist").innerHTML = CHECKS.map((c) => `
+  $("#checklist").innerHTML = CHECKS.map((c) => {
+    const { label, detail } = checkText(c);
+    return `
     <div class="check" data-check="${c.id}">
       <div>
-        <div class="check-label">${esc(c.label)}</div>
-        <p class="check-detail">${esc(c.detail)}</p>
+        <div class="check-label">${esc(label)}</div>
+        <p class="check-detail">${esc(detail)}</p>
       </div>
       <div>
-        <div class="seg" role="group" aria-label="${esc(c.label)}">
-          ${c.options.map((o) => `<button type="button" data-check="${c.id}" data-val="${o.v}" aria-pressed="${state.answers[c.id] === o.v}">${esc(o.label)}</button>`).join("")}
+        <div class="seg" role="group" aria-label="${esc(label)}">
+          ${c.options.map((o) => `<button type="button" data-check="${c.id}" data-val="${o.v}" aria-pressed="${state.answers[c.id] === o.v}">${esc(optionText(c, o))}</button>`).join("")}
         </div>
-        <p class="why" data-why="${c.id}" ${state.answers[c.id] ? "" : "hidden"}>${state.answers[c.id] ? esc(WHY[c.id][state.answers[c.id]]) : ""}</p>
+        <p class="why" data-why="${c.id}" ${state.answers[c.id] ? "" : "hidden"}>${state.answers[c.id] ? esc(whyText(c.id, state.answers[c.id])) : ""}</p>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 $("#checklist").addEventListener("click", (e) => {
@@ -90,7 +128,7 @@ $("#checklist").addEventListener("click", (e) => {
   document.querySelectorAll(`button[data-check="${check}"]`).forEach((x) =>
     x.setAttribute("aria-pressed", String(state.answers[check] === x.dataset.val)));
   const why = document.querySelector(`[data-why="${check}"]`);
-  why.textContent = state.answers[check] ? WHY[check][state.answers[check]] : "";
+  why.textContent = state.answers[check] ? whyText(check, state.answers[check]) : "";
   why.hidden = !state.answers[check];
   state.brief = null;
   state.handoff = null;
@@ -119,21 +157,22 @@ $("#to-brief").addEventListener("click", () => {
 
 /* ---------- 3. brief ---------- */
 const makeBrief = () => buildBrief(getScenario(state.scenarioId), state.answers, state.profile, {
-  technician: "Field technician (unassigned)",
+  technician: "",
   visitId: "VIS-" + String(Math.floor(Math.random() * 9000) + 1000),
 });
 
-const LEVEL_WORD = { high: "strong", medium: "likely", low: "weak", info: "note" };
+const CONF_KEY = { Ready: "conf.Ready", "Workable, one gap": "conf.Workable", Incomplete: "conf.Incomplete" };
 
 function renderBrief() {
   const b = state.brief || makeBrief();
   state.brief = b;
+  b.scenario = sc(b.scenario);
   const s = b.scenario;
-  $("#brief-id").textContent = `${b.meta.visitId} · report ${s.id}`;
-  $("#confidence").textContent = b.confidence;
+  $("#brief-id").textContent = `${b.meta.visitId} · ${s.id}`;
+  $("#confidence").textContent = t(CONF_KEY[b.confidence] || "conf.Incomplete");
   $("#confidence").dataset.level = b.confidence;
   $("#brief-customer").textContent = s.customer;
-  $("#brief-window").textContent = `Appointment window ${s.windows}. ${s.prevVisits.length ? `${s.prevVisits.length} prior visit${s.prevVisits.length > 1 ? "s" : ""} on record.` : "No prior visit on record."}`;
+  $("#brief-window").textContent = s.windows;
   $("#b-address").textContent = s.address;
   $("#b-line").textContent = `${s.line.label} · ${s.line.olt} ${s.line.port}`;
   $("#b-access").textContent = s.accessNotes;
@@ -141,51 +180,40 @@ function renderBrief() {
   $("#b-findings").innerHTML = b.findings.length
     ? b.findings.map((f) => `
       <div class="finding">
-        <div class="finding-head"><span class="level" data-level="${f.level}">${LEVEL_WORD[f.level]}</span><span class="finding-title">${esc(FINDING_TITLES[f.key] || f.key)}</span></div>
-        <p class="finding-note">${esc(f.note)}</p>
-        <ul class="because">${f.because.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+        <div class="finding-head"><span class="level" data-level="${f.level}">${esc(t("level." + f.level))}</span><span class="finding-title">${esc(f.copy.title || f.key)}</span></div>
+        <p class="finding-note">${esc(f.copy.note)}</p>
+        <ul class="because">${f.copy.because.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
       </div>`).join("")
-    : `<p style="color:var(--ink-2);font-size:.88rem">No checks answered. Nothing here is a finding yet. Answer the checks and the evidence appears with each one.</p>`;
+    : `<p style="color:var(--ink-2);font-size:.88rem">${esc(t("brief.noChecks"))}</p>`;
 
   const d = b.diagnosis;
+  const dLabel = d ? d.copy.label : "";
+  const dSkill = d ? d.copy.skill : "";
+  const gaps = b.unresolved.map((u) => (isMs() && MS_UNRESOLVED[u]) || u);
   $("#b-diagnosis").innerHTML = d ? `
     <div class="diag">
-      <div class="diag-label">${esc(d.label)}</div>
+      <div class="diag-label">${esc(dLabel)}</div>
       <div class="diag-meta">
-        <span>Skill: <strong>${esc(d.skill)}</strong></span>
-        <span>${d.noVisit ? "No visit proposed" : `Estimate: <strong class="mono">${d.min} to ${d.max} min</strong>`}</span>
+        <span>${esc(t("brief.skill"))}: <strong>${esc(dSkill)}</strong></span>
+        <span>${d.noVisit ? esc(t("brief.noVisit")) : `${esc(t("brief.estimate"))}: <strong class="mono">${d.min}${isMs() ? " hingga " : "–"}${d.max} min</strong>`}</span>
       </div>
     </div>
-    <p class="estimate-note">${d.noVisit ? "The evidence points inside the home. Close as a self-fix task before booking a technician." : "On-site time estimate, not a quote."} Ranked first across ${b.findings.length} finding${b.findings.length === 1 ? "" : "s"}.</p>
-    ${b.alternatives.length ? `<div class="alts">Also possible, lower in the evidence:<ul>${b.alternatives.map((x) => `<li>${esc(x.label)}</li>`).join("")}</ul></div>` : ""}
-  ` : `<div class="diag-none">No supported diagnosis yet. ${b.unresolved.length ? "Unanswered: " + esc(b.unresolved.join(", ")) + "." : ""}</div>`;
+    <p class="estimate-note">${esc(d.noVisit ? t("brief.selfFix") : t("brief.estimateNote"))} ${esc(t("brief.ranked", { n: b.findings.length }))}</p>
+    ${b.alternatives.length ? `<div class="alts">${esc(t("brief.alts"))}<ul>${b.alternatives.map((x) => `<li>${esc(x.copy.label)}</li>`).join("")}</ul></div>` : ""}
+  ` : `<div class="diag-none">${esc(t("brief.noDiag"))} ${gaps.length ? esc(t("brief.unanswered", { list: gaps.join(", ") })) : ""}</div>`;
 
   $("#b-agenda").innerHTML = b.agenda.map((x) => `<li><div><b>${esc(x.title)}</b><span>${esc(x.detail)}</span></div></li>`).join("");
   $("#b-safety").innerHTML = s.safety.map((x) => `<li>${esc(x)}</li>`).join("");
-  $("#b-parts").innerHTML = d && d.parts.length ? d.parts.map((x) => `<li>${esc(x)}</li>`).join("") : `<li>No parts implied by the current evidence.</li>`;
-  $("#b-estimate").textContent = d && !d.noVisit ? `Time ${d.min} to ${d.max} min · parts as listed · estimate only` : "";
-  $("#b-gaps").innerHTML = b.unresolved.length
-    ? b.unresolved.map((x) => `<li>${esc(x)}</li>`).join("")
-    : `<li style="color:var(--ok)">Line and router both measured. Nothing outstanding before the visit.</li>`;
+  $("#b-parts").innerHTML = d && d.copy.parts.length ? d.copy.parts.map((x) => `<li>${esc(x)}</li>`).join("") : `<li>${esc(t("brief.noParts"))}</li>`;
+  $("#b-estimate").textContent = d && !d.noVisit ? t("brief.estLine", { min: d.min, max: d.max }) : "";
+  $("#b-gaps").innerHTML = gaps.length
+    ? gaps.map((x) => `<li>${esc(x)}</li>`).join("")
+    : `<li style="color:var(--ok)">${esc(t("brief.noGaps"))}</li>`;
   $("#b-neighbours").innerHTML = s.customers.map((c) => `<tr><td>${esc(c.name)}</td><td class="mono">${esc(c.line)}</td><td>${esc(c.note)}</td></tr>`).join("");
   $("#b-prior").innerHTML = s.prevVisits.length
     ? s.prevVisits.map((v) => `<li><span class="mono" style="color:var(--ink-3);font-size:.78rem">${esc(v.id)} · ${v.daysAgo}d</span><br>${esc(v.found)}</li>`).join("")
-    : `<li>No prior visit on this line.</li>`;
+    : `<li>${esc(t("brief.noPrior"))}</li>`;
 }
-
-const FINDING_TITLES = {
-  line_down: "Line is down",
-  power: "No power to the router",
-  swap_already: "Hardware already swapped",
-  repeat_nff: "Repeat no-fault-found visits",
-  line_shortfall: "Line is short of the plan",
-  wifi_inside: "Fault is inside the home",
-  recurring_clean: "Recurring fault, clean at test time",
-  no_peak_test: "No peak-hour measurement",
-  shared_leg: "Neighbours on the shared leg report it too",
-  recurring_first_time: "First documented recurrence",
-  self_fix_exhausted: "Customer already tried the basics",
-};
 
 /* ---------- 4. handoff ---------- */
 function makeHandoff() {
@@ -204,87 +232,96 @@ function renderHandoff() {
   const h = makeHandoff();
   state.handoff = h;
   const b = h.brief;
-  const gap = (label, v) => v ? `<div class="handoff-row"><span class="handoff-key">${esc(label)}</span><span class="handoff-val">${esc(v)}</span></div>`
-    : `<div class="handoff-row"><span class="handoff-key">${esc(label)}</span><span class="handoff-val open">not recorded</span></div>`;
+  const gap = (label, v) => v
+    ? `<div class="handoff-row"><span class="handoff-key">${esc(label)}</span><span class="handoff-val">${esc(v)}</span></div>`
+    : `<div class="handoff-row"><span class="handoff-key">${esc(label)}</span><span class="handoff-val open">${esc(t("handoff.notRecorded"))}</span></div>`;
   $("#handoff-preview").innerHTML = `
     <h4>${esc(b.scenario.customer)} · ${esc(b.meta.visitId)}</h4>
     <p style="font-size:.84rem">${esc(h.explanation)}</p>
     <div style="margin-top:12px">
-      ${gap("Defect", h.defect === "not recorded" ? "" : h.defect)}
-      ${gap("Parts", h.needed === "not recorded" ? "" : h.needed)}
-      ${gap("Next step", h.visit.followup)}
+      ${gap(t("handoff.defectLbl"), h.defect)}
+      ${gap(t("handoff.partsLbl"), h.needed)}
+      ${gap(t("handoff.nextLbl"), h.visit.followup)}
     </div>
     <p style="margin-top:12px;font-size:.8rem;color:var(--ink-3)">${esc(h.reuse)}</p>
-    <p style="margin-top:10px;font-size:.8rem;color:var(--ink-3)">Carried forward: ${b.findings.length} finding${b.findings.length === 1 ? "" : "s"} with evidence, ${b.unresolved.length} open item${b.unresolved.length === 1 ? "" : "s"}.</p>`;
+    <p style="margin-top:10px;font-size:.8rem;color:var(--ink-3)">${esc(t("handoff.carried", { n: b.findings.length, m: b.unresolved.length }))}</p>`;
 }
-["defect", "parts", "followup"].forEach((id) => $("#" + id).addEventListener("input", () => { if (!$("#handoff").hidden) renderHandoff(); }));
-document.querySelectorAll('input[name="outcome"]').forEach((r) => r.addEventListener("change", () => { if (!$("#handoff").hidden) renderHandoff(); }));
+["defect", "parts", "followup"].forEach((id) => $("#" + id).addEventListener("input", () => { if (state.view === "handoff") renderHandoff(); }));
+document.querySelectorAll('input[name="outcome"]').forEach((r) => r.addEventListener("change", () => { if (state.view === "handoff") renderHandoff(); }));
 
 /* ---------- export ---------- */
 const briefText = (b) => {
   const d = b.diagnosis;
+  const s = b.scenario;
+  const gaps = b.unresolved.map((u) => (isMs() && MS_UNRESOLVED[u]) || u);
   return [
-    `LINECHECK BRIEF · ${b.meta.visitId} · report ${b.scenario.id} (synthetic scenario)`,
-    `Customer: ${b.scenario.customer}`,
-    `Address: ${b.scenario.address}`,
-    `Window: ${b.scenario.windows}`,
-    `Line: ${b.scenario.line.label} · ${b.scenario.line.olt} ${b.scenario.line.port}`,
-    `Confidence: ${b.confidence}`,
+    `LINECHECK · ${b.meta.visitId} · ${s.id}`,
+    `${isMs() ? "Pelanggan" : "Customer"}: ${s.customer}`,
+    `${t("brief.address")}: ${s.address}`,
+    `${isMs() ? "Tetingkap" : "Window"}: ${s.windows}`,
+    `${t("brief.line")}: ${s.line.label} · ${s.line.olt} ${s.line.port}`,
+    `${isMs() ? "Keyakinan" : "Confidence"}: ${t(CONF_KEY[b.confidence])}`,
     "",
-    "ACCESS", b.scenario.accessNotes,
+    t("brief.access").toUpperCase(), s.accessNotes,
     "",
-    "SAFETY", ...b.scenario.safety.map((x) => "- " + x),
+    t("brief.safety").toUpperCase(), ...s.safety.map((x) => "- " + x),
     "",
-    "FINDINGS",
-    ...(b.findings.length ? b.findings.flatMap((f) => [`[${f.level}] ${FINDING_TITLES[f.key] || f.key}`, "  " + f.note, ...f.because.map((x) => "  evidence: " + x)]) : ["- none, no checks answered"]),
+    t("brief.known").toUpperCase(),
+    ...(b.findings.length
+      ? b.findings.flatMap((f) => [`${t("level." + f.level).toUpperCase()} · ${f.copy.title || f.key}`, "  " + f.copy.note, ...f.copy.because.map((x) => "  · " + x)])
+      : ["- " + t("brief.noChecks")]),
     "",
-    "LEAD DIAGNOSIS", d ? `${d.label} · ${d.skill} · ${d.noVisit ? "no visit" : d.min + " to " + d.max + " min (estimate)"}` : "none yet",
-    ...(b.alternatives.length ? ["Also possible: " + b.alternatives.map((x) => x.label).join("; ")] : []),
+    t("brief.diagnosis").toUpperCase(),
+    d ? `${d.copy.label} · ${d.copy.skill} · ${d.noVisit ? t("brief.noVisit") : d.min + (isMs() ? " hingga " : "–") + d.max + " min"}` : t("brief.noDiag"),
+    ...(b.alternatives.length ? [t("brief.alts") + " " + b.alternatives.map((x) => x.copy.label).join("; ")] : []),
     "",
-    "AGENDA", ...b.agenda.map((x, i) => `${i + 1}. ${x.title}: ${x.detail}`),
+    t("brief.agenda").toUpperCase(), ...b.agenda.map((x, i) => `${i + 1}. ${x.title}: ${x.detail}`),
     "",
-    "NOT ESTABLISHED", ...(b.unresolved.length ? b.unresolved.map((x) => "- " + x) : ["- none"]),
+    t("brief.gaps").toUpperCase(), ...(gaps.length ? gaps.map((x) => "- " + x) : ["- " + t("brief.noGaps")]),
     "",
-    "PARTS", ...(d && d.parts.length ? d.parts.map((x) => "- " + x) : ["- none implied"]),
+    t("brief.parts").toUpperCase(), ...(d && d.copy.parts.length ? d.copy.parts.map((x) => "- " + x) : ["- " + t("brief.noParts")]),
     "",
-    "This brief is generated from synthetic data. Time and parts are estimates.",
+    t("foot.synth"),
   ].join("\n");
 };
 
-const handoffText = (h) => [
-  `LINECHECK HANDOFF · ${h.brief.meta.visitId} · ${h.brief.scenario.id} (synthetic scenario)`,
-  `Customer: ${h.brief.scenario.customer}`,
-  `Outcome: ${h.explanation}`,
-  `Defect: ${h.defect}`,
-  `Parts: ${h.needed}`,
-  `Next step: ${h.visit.followup || "not recorded"}`,
-  `Reuse: ${h.reuse}`,
-  "",
-  "Open items",
-  ...(h.brief.unresolved.length ? h.brief.unresolved.map((x) => "- " + x) : ["- none"]),
-].join("\n");
+const handoffText = (h) => {
+  const gaps = h.brief.unresolved.map((u) => (isMs() && MS_UNRESOLVED[u]) || u);
+  return [
+    `LINECHECK · ${h.brief.meta.visitId} · ${h.brief.scenario.id}`,
+    h.brief.scenario.customer,
+    `${t("handoff.outcome")}: ${h.explanation}`,
+    `${t("handoff.defectLbl")}: ${h.defect || t("handoff.notRecorded")}`,
+    `${t("handoff.partsLbl")}: ${h.needed || t("handoff.notRecorded")}`,
+    `${t("handoff.nextLbl")}: ${h.visit.followup || t("handoff.notRecorded")}`,
+    h.reuse,
+    "",
+    t("brief.gaps").toUpperCase(), ...(gaps.length ? gaps.map((x) => "- " + x) : ["- " + t("brief.noGaps")]),
+  ].join("\n");
+};
 
 async function copy(text, btn) {
+  const old = btn.textContent;
   try {
     await navigator.clipboard.writeText(text);
-    const old = btn.textContent;
-    btn.textContent = "Copied";
-    setTimeout(() => { btn.textContent = old; }, 1400);
+    btn.textContent = isMs() ? "Disalin" : "Copied";
   } catch {
-    window.prompt("Copy this text", text);
+    btn.textContent = isMs() ? "Salin di tetingkap" : "Copy in prompt";
+    window.prompt(isMs() ? "Salin teks ini" : "Copy this text", text);
   }
+  setTimeout(() => { btn.textContent = old; }, 1400);
 }
 
 $("#copy-brief").addEventListener("click", (e) => copy(briefText(state.brief || makeBrief()), e.currentTarget));
 $("#copy-handoff").addEventListener("click", (e) => copy(handoffText(state.handoff || makeHandoff()), e.currentTarget));
 
-function printView(id, btn) {
+function printView(id) {
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("is-print", v.id === id));
   window.print();
   setTimeout(() => document.querySelectorAll(".view").forEach((v) => v.classList.remove("is-print")), 300);
 }
 $("#print-brief").addEventListener("click", () => printView("brief"));
-$("#print-handoff").addEventListener("click", () => printView("handoff", $("#print-handoff")));
+$("#print-handoff").addEventListener("click", () => printView("handoff"));
 
 $("#reset").addEventListener("click", () => {
   state.answers = {}; state.brief = null; state.handoff = null;
@@ -297,7 +334,45 @@ const dlg = $("#method");
 $("#open-method").addEventListener("click", (e) => { e.preventDefault(); dlg.showModal(); });
 $("#close-method").addEventListener("click", () => dlg.close());
 
+/* ---------- theme ---------- */
+const themeBtn = $("#theme-toggle");
+const applyTheme = (mode) => {
+  document.documentElement.dataset.theme = mode;
+  themeBtn.setAttribute("aria-label", (mode === "dark" ? "Switch to light" : "Switch to dark") + " / " + (mode === "dark" ? "Tukar ke cerah" : "Tukar ke gelap"));
+};
+applyTheme(document.documentElement.dataset.theme || "light");
+themeBtn.addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(next);
+  localStorage.setItem("linecheck-theme", next);
+});
+
+/* ---------- language ---------- */
+// Re-renders everything that carries text. State is kept, so switching
+// language mid-workflow does not lose answers or the current brief.
+function applyLang(code) {
+  setLang(code);
+  document.documentElement.lang = code === "ms" ? "ms" : "en";
+  localStorage.setItem("linecheck-lang", code);
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === code)));
+  // Placeholders live outside the text pass.
+  $("#field").placeholder = t("start.wordsPh");
+  $("#defect").placeholder = t("handoff.defectPh");
+  $("#parts").placeholder = t("handoff.partsPh");
+  $("#followup").placeholder = t("handoff.followupPh");
+  // The brief already holds a generated scenario; rebuild it in the new language.
+  if (state.brief) state.brief = makeBrief();
+  renderChecks();
+  previewReport();
+  if (state.view === "brief") renderBrief();
+  if (state.view === "handoff") renderHandoff();
+}
+
+document.querySelectorAll("[data-lang]").forEach((b) =>
+  b.addEventListener("click", () => applyLang(b.dataset.lang)));
+
 /* ---------- init ---------- */
-previewReport();
-renderChecks();
+const browserMs = (navigator.language || "").toLowerCase().startsWith("ms");
+applyLang(localStorage.getItem("linecheck-lang") || (browserMs ? "ms" : "en"));
 show("start");

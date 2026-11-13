@@ -2,6 +2,8 @@
 
 Turns a fault report and four checks into a technician brief, a visit agenda, and a post-visit handoff.
 
+An MI4inc lab tool by KDMIRAH Lab. English and Bahasa Melayu, light and dark, no build step.
+
 ## Who it is for
 
 Field technicians, and the support agents who book their visits. Built from the pattern every broadband field team knows: the same fault comes back, the last visit closed as "no fault found", and the next technician arrives without knowing what was already tried.
@@ -35,6 +37,12 @@ A brief stays **Incomplete** until line status and speed at the router are both 
 - The tool does not confirm coverage. Nothing here is a coverage claim.
 - No AI model runs at runtime. The decision table is fixed and its outputs are auditable.
 
+## Language and theme
+
+- **EN / BM** in the header. Every interface string, scenario description, check, finding, agenda step, and export translates. The decision logic does not: the same answers produce the same diagnosis in both languages, and the self-check asserts that.
+- Malay keeps Malaysian field vocabulary rather than literal translation: *talian* (line), *kabel turun* (drop cable), *lawatan* (visit), *pemisah* (splitter), *belum dipastikan* (not yet established). NFF stays NFF, as it does in the field.
+- **Light / dark** follows the system preference on first load. The toggle overrides and persists. Both palettes are checked at WCAG AA or better; the darkest pair used is 4.77:1.
+
 ## Running it
 
 Static files, no build step, no dependencies.
@@ -61,4 +69,7 @@ node engine.test.mjs
 | `engine.js` | Findings, ranking, agenda, handoff (pure functions, no DOM) |
 | `checks.js` | The four checks and what each answer means |
 | `scenarios.js` | Four synthetic reports plus the fault catalogue |
-| `engine.test.mjs` | Self-check: 18 assertions, run with `node` |
+| `i18n.js` | Both language dictionaries and the `t()` lookup |
+| `ms.js` | Malay prose for scenarios, checks, findings, agenda |
+| `favicon.svg` | The mark, for the browser tab |
+| `engine.test.mjs` | Self-check: 32 assertions, run with `node` |

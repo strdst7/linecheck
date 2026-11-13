@@ -1,25 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Linecheck: fault to technician brief</title>
-<meta name="description" content="Turn a mock fault report and a few checks into a technician brief, a visit agenda, and a post-visit handoff. Synthetic data only.">
+<title>Linecheck: a fault-to-brief tool for field technicians</title>
+<meta name="description" content="Turn a mock fault report and a few checks into a technician brief, a visit agenda, and a post-visit handoff. Synthetic data only. An MI4inc lab tool by KDMIRAH Lab.">
+<meta name="theme-color" content="#f4f1e9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11110f" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&display=swap">
 <link rel="stylesheet" href="styles.css">
+<script>
+  // Applied before first paint so a dark load never flashes cream.
+  (() => {
+    const saved = localStorage.getItem("linecheck-theme");
+    const sys = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved || sys;
+  })();
+</script>
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="#start">
-    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 15l4-4 3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="8" r="1.6" fill="currentColor"/></svg>
-    <span>Linecheck</span>
+  <a class="brand" href="#start" aria-label="Linecheck, an MI4inc lab tool">
+    <!-- MI4inc mark: the m about to dissolve into dust, four-point star inside the disc. -->
+    <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="19" cy="20" r="17" fill="var(--mark-bg)" stroke="var(--mark-ring)" stroke-width="1.6"/>
+      <text x="19" y="25.5" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="700" font-style="italic" fill="var(--mark-ink)">m4</text>
+      <g fill="var(--mark-star)">
+        <path d="M31.4 10.2 32.3 12.4 34.6 13.3 32.3 14.2 31.4 16.5 30.5 14.2 28.2 13.3 30.5 12.4Z"/>
+        <circle cx="27.9" cy="9.2" r="0.85"/>
+        <circle cx="34.9" cy="16.6" r="0.7"/>
+      </g>
+    </svg>
+    <span class="brand-text">
+      <span class="brand-name" data-i18n="app.name">Linecheck</span>
+      <span class="brand-sub" data-i18n="app.by">an MI4inc lab tool</span>
+    </span>
   </a>
   <nav class="steps" aria-label="Workflow steps">
-    <button data-goto="start" class="step">Report</button>
-    <button data-goto="checks" class="step">Checks</button>
-    <button data-goto="brief" class="step">Brief</button>
-    <button data-goto="handoff" class="step">Handoff</button>
+    <button data-goto="start" class="step" data-i18n="nav.report">Report</button>
+    <button data-goto="checks" class="step" data-i18n="nav.checks">Checks</button>
+    <button data-goto="brief" class="step" data-i18n="nav.brief">Brief</button>
+    <button data-goto="handoff" class="step" data-i18n="nav.handoff">Handoff</button>
   </nav>
-  <span class="synth-tag">Synthetic scenarios</span>
+  <div class="controls">
+    <span class="synth-tag" data-i18n="synth">Simulated data</span>
+    <div class="seg-lang" role="group" aria-labelledby="lang-label">
+      <span id="lang-label" class="sr-only" data-i18n="nav.language">Language</span>
+      <button data-lang="en" aria-pressed="true">EN</button>
+      <button data-lang="ms" aria-pressed="false">BM</button>
+    </div>
+    <button id="theme-toggle" class="icon-btn">
+      <svg class="ico-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 1v2M10 17v2M1 10h2M17 10h2M3.6 3.6l1.4 1.4M15 15l1.4 1.4M16.4 3.6L15 5M5 15l-1.4 1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <svg class="ico-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16 12.4A6.8 6.8 0 0 1 7.6 4a6.9 6.9 0 1 0 8.4 8.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <span class="sr-only" data-i18n="nav.theme">Theme</span>
+    </button>
+  </div>
 </header>
 
 <main>
@@ -27,42 +65,42 @@
   <section id="start" class="view">
     <div class="split">
       <div class="pane-left">
-        <h1>Stop sending the same fault back.</h1>
-        <p class="lede">A fault report becomes a technician brief with its evidence attached: what the last visit missed, what to measure first, what to bring, and what to leave in the room.</p>
+        <h1 data-i18n="start.h1">Stop sending the same fault back.</h1>
+        <p class="lede" data-i18n="start.lede">A fault report becomes a technician brief with its evidence attached.</p>
         <form id="report-form" class="stack" novalidate>
           <div class="field">
-            <label for="scenario">Fault report <span class="req">required</span></label>
+            <label for="scenario"><span data-i18n="start.scenario">Fault report</span><span class="req" data-i18n="start.required">required</span></label>
             <select id="scenario" required></select>
-            <p class="help" id="scenario-help">Pick one of four fictional reports. Each carries prior visits, neighbours, and access notes like a real queue does.</p>
+            <p class="help" data-i18n="start.scenarioHelp">Pick one of four fictional reports.</p>
           </div>
           <fieldset class="field">
-            <legend>What the customer already tried</legend>
-            <label class="radio"><input type="radio" name="tries" value="none" checked> Nothing yet</label>
-            <label class="radio"><input type="radio" name="tries" value="some"> Router restart or cable reseat</label>
-            <label class="radio"><input type="radio" name="tries" value="many"> Several restarts, resets, and a support call</label>
+            <legend data-i18n="start.tries">What the customer already tried</legend>
+            <label class="radio"><input type="radio" name="tries" value="none" checked><span data-i18n="start.tries.none">Nothing yet</span></label>
+            <label class="radio"><input type="radio" name="tries" value="some"><span data-i18n="start.tries.some">Router restart or cable reseat</span></label>
+            <label class="radio"><input type="radio" name="tries" value="many"><span data-i18n="start.tries.many">Several restarts, resets, and a support call</span></label>
           </fieldset>
           <fieldset class="field">
-            <legend>Has the fault come back after a previous visit?</legend>
-            <label class="radio"><input type="radio" name="repeats" value="unknown" checked> First visit / unknown</label>
-            <label class="radio"><input type="radio" name="repeats" value="yes"> Yes, it returned</label>
+            <legend data-i18n="start.repeats">Has the fault come back after a previous visit?</legend>
+            <label class="radio"><input type="radio" name="repeats" value="unknown" checked><span data-i18n="start.repeats.unknown">First visit / unknown</span></label>
+            <label class="radio"><input type="radio" name="repeats" value="yes"><span data-i18n="start.repeats.yes">Yes, it returned</span></label>
           </fieldset>
           <div class="field">
-            <label for="field">In the customer's own words <span class="opt">optional, unverified</span></label>
-            <textarea id="field" rows="3" placeholder="e.g. the back room drops my video call around 8pm"></textarea>
-            <p class="help">Free text is treated as an unverified report. It flags attention, it never becomes evidence for a cause.</p>
+            <label for="field"><span data-i18n="start.words">In the customer's own words</span><span class="opt" data-i18n="start.wordsOpt">optional, unverified</span></label>
+            <textarea id="field" rows="3"></textarea>
+            <p class="help" data-i18n="start.wordsHelp">Free text is treated as an unverified report.</p>
           </div>
-          <button class="primary" type="submit">Open the brief</button>
+          <button class="primary" type="submit" data-i18n="start.submit">Open the brief</button>
         </form>
       </div>
       <aside class="pane-right">
-        <h2 class="aside-h">This report</h2>
+        <h2 class="aside-h" data-i18n="start.aside">This report</h2>
         <div id="report-preview" class="preview" aria-live="polite"></div>
         <div class="note">
-          <h3>What this tool will not do</h3>
+          <h3 data-i18n="start.notDo">What this tool will not do</h3>
           <ul>
-            <li>Confirm coverage. Customer reports are not measured data.</li>
-            <li>Price the job. Time and parts are labelled estimates.</li>
-            <li>Name a cause without showing the evidence.</li>
+            <li data-i18n="start.notDo.1">Confirm coverage.</li>
+            <li data-i18n="start.notDo.2">Price the job.</li>
+            <li data-i18n="start.notDo.3">Name a cause without evidence.</li>
           </ul>
         </div>
       </aside>
@@ -73,18 +111,18 @@
   <section id="checks" class="view" hidden>
     <div class="view-head">
       <div>
-        <h2>Checks before the van moves</h2>
-        <p class="lede-sm">Four checks. Answer what you know and leave the rest. Every unanswered check shows up as a gap in the brief, not as a guess.</p>
+        <h2 data-i18n="checks.h2">Checks before the van moves</h2>
+        <p class="lede-sm" data-i18n="checks.lede">Four checks.</p>
       </div>
       <div class="head-actions">
-        <button class="ghost" id="preset-nff">Load NFF case</button>
-        <button class="ghost" id="preset-clean">Load clean-line case</button>
+        <button class="ghost" id="preset-nff" data-i18n="checks.presetNff">Load NFF case</button>
+        <button class="ghost" id="preset-clean" data-i18n="checks.presetClean">Load clean-line case</button>
       </div>
     </div>
     <div id="checklist" class="checklist"></div>
     <div class="row-end">
-      <button class="ghost" data-goto="start">&larr; Back to report</button>
-      <button class="primary" id="to-brief">Build the brief</button>
+      <button class="ghost" data-goto="start" data-i18n="checks.back">Back to report</button>
+      <button class="primary" id="to-brief" data-i18n="checks.next">Build the brief</button>
     </div>
   </section>
 
@@ -97,68 +135,65 @@
         <p class="lede-sm" id="brief-window"></p>
       </div>
       <div class="head-actions">
-        <button class="ghost" id="print-brief">Print / PDF</button>
-        <button class="ghost" id="copy-brief">Copy as text</button>
+        <button class="ghost" id="print-brief" data-i18n="brief.print">Print / PDF</button>
+        <button class="ghost" id="copy-brief" data-i18n="brief.copy">Copy as text</button>
       </div>
     </div>
 
     <div class="brief-grid">
       <article class="col-main">
         <section class="block">
-          <h3>The job</h3>
+          <h3 data-i18n="brief.job">The job</h3>
           <dl class="facts">
-            <div><dt>Address</dt><dd id="b-address"></dd></div>
-            <div><dt>Line</dt><dd id="b-line" class="mono"></dd></div>
-            <div><dt>Access</dt><dd id="b-access"></dd></div>
+            <div><dt data-i18n="brief.address">Address</dt><dd id="b-address"></dd></div>
+            <div><dt data-i18n="brief.line">Line</dt><dd id="b-line" class="mono"></dd></div>
+            <div><dt data-i18n="brief.access">Access</dt><dd id="b-access"></dd></div>
           </dl>
         </section>
-
         <section class="block">
-          <h3>What we know, and how we know it</h3>
+          <h3 data-i18n="brief.known">What we know, and how we know it</h3>
           <div id="b-findings"></div>
         </section>
-
         <section class="block">
-          <h3>Lead diagnosis</h3>
+          <h3 data-i18n="brief.diagnosis">Lead diagnosis</h3>
           <div id="b-diagnosis"></div>
         </section>
-
         <section class="block">
-          <h3>Visit agenda</h3>
+          <h3 data-i18n="brief.agenda">Visit agenda</h3>
           <ol id="b-agenda" class="agenda"></ol>
         </section>
       </article>
 
       <aside class="col-side">
         <section class="block tight">
-          <h3>Safety and access</h3>
+          <h3 data-i18n="brief.safety">Safety and access</h3>
           <ul id="b-safety" class="flaglist"></ul>
         </section>
         <section class="block tight">
-          <h3>Bring on site</h3>
+          <h3 data-i18n="brief.parts">Bring on site</h3>
           <ul id="b-parts" class="plainlist"></ul>
           <p class="est mono" id="b-estimate"></p>
         </section>
         <section class="block tight">
-          <h3>Not yet established</h3>
+          <h3 data-i18n="brief.gaps">Not yet established</h3>
           <ul id="b-gaps" class="gaplist"></ul>
         </section>
         <section class="block tight">
-          <h3>Neighbouring lines</h3>
+          <h3 data-i18n="brief.neighbours">Neighbouring lines</h3>
           <table class="mini">
-            <thead><tr><th>Customer</th><th>Line</th><th>Note</th></tr></thead>
+            <thead><tr><th data-i18n="brief.neighbourCustomer">Customer</th><th data-i18n="brief.neighbourLine">Line</th><th data-i18n="brief.neighbourNote">Note</th></tr></thead>
             <tbody id="b-neighbours"></tbody>
           </table>
         </section>
         <section class="block tight">
-          <h3>Prior visits</h3>
+          <h3 data-i18n="brief.prior">Prior visits</h3>
           <ul id="b-prior" class="plainlist"></ul>
         </section>
       </aside>
     </div>
     <div class="row-end">
-      <button class="ghost" data-goto="checks">&larr; Back to checks</button>
-      <button class="primary" data-goto="handoff">Close the visit</button>
+      <button class="ghost" data-goto="checks" data-i18n="brief.backChecks">Back to checks</button>
+      <button class="primary" data-goto="handoff" data-i18n="brief.close">Close the visit</button>
     </div>
   </section>
 
@@ -166,67 +201,72 @@
   <section id="handoff" class="view" hidden>
     <div class="view-head">
       <div>
-        <h2>Post-visit handoff</h2>
-        <p class="lede-sm">What the next person needs, in one screen. Whatever you leave unrecorded appears here as open, not as done.</p>
+        <h2 data-i18n="handoff.h2">Post-visit handoff</h2>
+        <p class="lede-sm" data-i18n="handoff.lede">What the next person needs, in one screen.</p>
       </div>
     </div>
     <div class="split">
       <div class="pane-left">
         <form id="visit-form" class="stack" novalidate>
           <fieldset class="field">
-            <legend>Outcome on site</legend>
-            <label class="radio"><input type="radio" name="outcome" value="fixed"> Fault cleared and customer showed working service</label>
-            <label class="radio"><input type="radio" name="outcome" value="pending"> Temporary mitigation, second visit needed</label>
-            <label class="radio"><input type="radio" name="outcome" value="escalated"> Escalated to the network team</label>
-            <label class="radio"><input type="radio" name="outcome" value="left"> Left with the fault</label>
+            <legend data-i18n="handoff.outcome">Outcome on site</legend>
+            <label class="radio"><input type="radio" name="outcome" value="fixed"><span data-i18n="handoff.outcome.fixed">Fault cleared</span></label>
+            <label class="radio"><input type="radio" name="outcome" value="pending"><span data-i18n="handoff.outcome.pending">Temporary mitigation</span></label>
+            <label class="radio"><input type="radio" name="outcome" value="escalated"><span data-i18n="handoff.outcome.escalated">Escalated</span></label>
+            <label class="radio"><input type="radio" name="outcome" value="left"><span data-i18n="handoff.outcome.left">Left with the fault</span></label>
           </fieldset>
           <div class="field">
-            <label for="defect">Defect found</label>
-            <input id="defect" type="text" placeholder="e.g. perished entry sleeve, water in the connector">
+            <label for="defect" data-i18n="handoff.defect">Defect found</label>
+            <input id="defect" type="text">
           </div>
           <div class="field">
-            <label for="parts">Parts used</label>
-            <input id="parts" type="text" placeholder="e.g. 2-pair drop cable, 8 m">
+            <label for="parts" data-i18n="handoff.parts">Parts used</label>
+            <input id="parts" type="text">
           </div>
           <div class="field">
-            <label for="followup">Next step for whoever picks this up</label>
-            <textarea id="followup" rows="2" placeholder="e.g. network team to check splitter port 12/7 during the 8pm peak"></textarea>
+            <label for="followup" data-i18n="handoff.followup">Next step</label>
+            <textarea id="followup" rows="2"></textarea>
           </div>
-          <button class="primary" id="build-handoff" type="submit">Build handoff</button>
+          <button class="primary" id="build-handoff" type="submit" data-i18n="handoff.submit">Build handoff</button>
         </form>
       </div>
       <aside class="pane-right">
-        <h2 class="aside-h">Handoff preview</h2>
+        <h2 class="aside-h" data-i18n="handoff.preview">Handoff preview</h2>
         <div id="handoff-preview" class="preview" aria-live="polite"></div>
         <div class="head-actions mt">
-          <button class="ghost" id="print-handoff" type="button">Print / PDF</button>
-          <button class="ghost" id="copy-handoff" type="button">Copy as text</button>
+          <button class="ghost" id="print-handoff" type="button" data-i18n="brief.print">Print / PDF</button>
+          <button class="ghost" id="copy-handoff" type="button" data-i18n="brief.copy">Copy as text</button>
         </div>
       </aside>
     </div>
     <div class="row-end">
-      <button class="ghost" data-goto="brief">&larr; Back to brief</button>
-      <button class="ghost" id="reset">Start another report</button>
+      <button class="ghost" data-goto="brief" data-i18n="handoff.back">Back to brief</button>
+      <button class="ghost" id="reset" data-i18n="handoff.reset">Start another report</button>
     </div>
   </section>
 </main>
 
 <footer class="foot">
-  <p><strong>Simulated scenarios.</strong> Every customer, address, line, visit, and measurement in Linecheck is fictional and built for demonstration. No provider data, customer record, or network telemetry is used. Time and parts figures are estimates, not quotes.</p>
-  <p class="foot-links"><a href="#how" id="open-method">Method and limits</a></p>
+  <div class="foot-grid">
+    <p><strong data-i18n="foot.synthLead">Simulated scenarios.</strong> <span data-i18n="foot.synth">Every customer is fictional.</span></p>
+    <div class="foot-side">
+      <a href="#how" id="open-method" data-i18n="foot.method">Method and limits</a>
+      <p class="lab" data-i18n="foot.lab">An MI4inc lab build by KDMIRAH Lab.</p>
+    </div>
+  </div>
 </footer>
 
 <dialog id="method">
   <article>
-    <h2>How Linecheck decides</h2>
-    <p>Four checks are scored against a fixed table of twelve possible faults. A fault only appears in the brief when a check actually supports it. A clean line with a healthy router cannot produce a drop-cable diagnosis, because no answer would justify it.</p>
-    <h3>Ordering, not proving</h3>
-    <p>Ranking decides what to look at first. It does not prove a cause. Every item in the brief carries the answer or record that pointed to it, so the technician can disagree with the reasoning line by line.</p>
-    <h3>Uncertainty is shown, not hidden</h3>
-    <p>Unanswered checks become "Not yet established". A brief stays Incomplete until speed at the router and line status are both measured, because a wiring conclusion without either is a guess dressed as a finding.</p>
-    <h3>What is fake here</h3>
-    <p>The customers, addresses, prior visits, neighbour lines, and measurements are synthetic. The decision table, the gaps, and the handoff logic are real and run in the browser.</p>
-    <button class="primary" id="close-method">Back to the brief</button>
+    <h2 data-i18n="method.h2">How Linecheck decides</h2>
+    <p data-i18n="method.p1"></p>
+    <h3 data-i18n="method.h3a">Ordering, not proving</h3>
+    <p data-i18n="method.p2"></p>
+    <h3 data-i18n="method.h3b">Uncertainty is shown, not hidden</h3>
+    <p data-i18n="method.p3"></p>
+    <h3 data-i18n="method.h3c">What is fake here</h3>
+    <p data-i18n="method.p4"></p>
+    <button class="primary" id="close-method" data-i18n="method.close">Back to the brief</button>
   </article>
 </dialog>
 

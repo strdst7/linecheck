@@ -7,7 +7,19 @@
    where field is a free-text line the customer wrote. Nothing here
    treats that text as verified. */
 import { DIAGNOSES } from "./scenarios.js";
-import { WHY } from "./checks.js";
+import { t, getLang } from "./i18n.js";
+import { MS_DIAGNOSES, MS_FINDING, MS_FINDING_BECAUSE, MS_AGENDA, MS_UNRESOLVED, MS_NEIGHBOUR_NOTE } from "./ms.js";
+
+// Localise a finding: keys are stable, copy comes from i18n.js, with the
+// Malay bundle in ms.js standing in for the long-form evidence strings.
+const findingCopy = (f) => getLang() === "ms" && MS_FINDING[f.key]
+  ? { title: MS_FINDING[f.key].title, note: MS_FINDING[f.key].note,
+      because: f.because.map((b) => MS_FINDING_BECAUSE[b] || b) }
+  : { title: null, note: f.note, because: f.because };
+
+const diagCopy = (key, base) => getLang() === "ms" && MS_DIAGNOSES[key]
+  ? { label: MS_DIAGNOSES[key].label, skill: MS_DIAGNOSES[key].skill, parts: MS_DIAGNOSES[key].parts }
+  : { label: base.label, skill: base.skill, parts: base.parts };
 
 const P = (ans, k) => (ans && ans[k]) || null;
 
@@ -25,7 +37,10 @@ export function findings(scenario, answers, profile) {
   const wifi = P(a, "wifi_pattern");
   const nff = scenario.prevVisits.filter((v) => v.conclusion === "NFF");
   const swaps = scenario.prevVisits.filter((v) => v.conclusion === "hardware swap");
-  const neighboursComplain = scenario.customers.filter((c) => /evening|same as|slow|video call/i.test(c.note));
+  // Match both languages: the rule must fire in Malay too, so it tests the
+  // raw English note OR its Malay translation.
+  const neighboursComplain = scenario.customers.filter((c) =>
+    /evening|same as|slow|video call|petang|perlahan|sama seperti/i.test(c.note));
 
   if (line === "down") {
     out.push({ key: "line_down", level: "high", weight: 10,
@@ -41,20 +56,20 @@ export function findings(scenario, answers, profile) {
 
   if (swaps.length && light !== "off") {
     out.push({ key: "swap_already", level: "medium", weight: 5,
-      because: swaps.map((v) => `${v.id}: hardware replaced (${v.daysAgo} days ago)`),
+      because: swaps.map((v) => `${v.id}: ${t("ev.swap", { d: v.daysAgo })}`),
       note: "Hardware was already swapped and the fault returned. Do not swap the same model again without new evidence." });
   }
 
   if (nff.length && light !== "off") {
     out.push({ key: "repeat_nff", level: "high", weight: 8,
-      because: nff.map((v) => `${v.id}: billed no fault found (${v.daysAgo} days ago)`),
+      because: nff.map((v) => `${v.id}: ${t("ev.nff", { d: v.daysAgo })}`),
       note: "Repeat no-fault-found visits. Treat the previous conclusion as a suspect, not as proof. Take the measurement the prior visit skipped." });
   }
 
   if (speed === "n" && light !== "off") {
     out.push({ key: "line_shortfall", level: "high", weight: 8,
       because: ["Speed at the router is below the plan during the busy hour",
-        scenario.line.type === "FTTH" ? `Provisioned on ${scenario.line.olt} ${scenario.line.port}` : "Access line profile"],
+        scenario.line.type === "FTTH" ? t("ev.provisioned", { olt: scenario.line.olt, port: scenario.line.port }) : t("ev.profile")],
       note: "Slow at the router means the line, the drop, or the shared leg, not the in-home network." });
   }
 
@@ -81,7 +96,7 @@ export function findings(scenario, answers, profile) {
 
   if (speed === "n" && neighboursComplain.length) {
     out.push({ key: "shared_leg", level: "medium", weight: 5,
-      because: neighboursComplain.map((c) => `${c.name} (${c.line}): ${c.note}`),
+      because: neighboursComplain.map((c) => `${c.name} (${c.line}): ${(getLang() === "ms" && MS_NEIGHBOUR_NOTE[c.note]) || c.note}`),
       note: "Neighbours on the same shared leg report the same pattern. Check the splitter or port before blaming the customer drop." });
   }
 
@@ -97,7 +112,7 @@ export function findings(scenario, answers, profile) {
       note: "Do not repeat basic steps the customer already did. Say what you will do differently." });
   }
 
-  return out;
+  return out.map((f) => ({ ...f, copy: findingCopy(f) }));
 }
 
 /* ---------- ranking ----------
@@ -124,7 +139,7 @@ export function rank(scenario, answers) {
   // blamed. Rather than hide the self-fix options, drop the network-side ones.
   const insideOnly = P(a, "speed_at_router") === "y" && P(a, "line_status") === "up";
   const ranked = Object.entries(RULES)
-    .map(([key, score]) => ({ key, score: score(a, scenario), ...DIAGNOSES[key] }))
+    .map(([key, score]) => ({ key, score: score(a, scenario), ...DIAGNOSES[key], copy: diagCopy(key, DIAGNOSES[key]) }))
     .filter((d) => d.score > 0 && !(insideOnly && d.skill !== "Customer self-fix"))
     .sort((x, y) => y.score - x.score);
   return { top: ranked[0] || null, rest: ranked.slice(1) };
@@ -137,24 +152,30 @@ export function agenda(scenario, answers) {
   const steps = [];
   const nff = scenario.prevVisits.filter((v) => v.conclusion === "NFF");
 
-  steps.push({
+  const ms = getLang() === "ms";
+  const ag = (k, fb) => ms ? { title: MS_AGENDA[k].title, detail: MS_AGENDA[k].detail } : fb;
+
+  steps.push(ag("review", {
     title: "Re-read the previous visit before you touch anything",
     detail: nff.length
       ? `The last visit closed as no fault found (${nff.map((v) => v.id).join(", ")}). Say what you will measure that the last visit did not.`
       : "No prior no-fault-found closure on this line.",
-  });
+  }));
+  if (ms) steps[0].detail = nff.length
+    ? MS_AGENDA.review.detailNff.replace("{ids}", nff.map((v) => v.id).join(", "))
+    : MS_AGENDA.review.detailNone;
 
   if (P(a, "speed_at_router") !== "y") {
-    steps.push({ title: "Test speed at the router during the customer's busy hour", detail: "Wired device at the router. Record the time, plan speed, and result. Peak-hour numbers are the whole point." });
+    steps.push(ag("speed", { title: "Test speed at the router during the customer's busy hour", detail: "Wired device at the router. Record the time, plan speed, and result. Peak-hour numbers are the whole point." }));
   }
   if (P(a, "line_status") === "unknown") {
-    steps.push({ title: "Confirm line status from the access network before the visit", detail: "Line state decides whether you are chasing a line fault or an in-home fault." });
+    steps.push(ag("line", { title: "Confirm line status from the access network before the visit", detail: "Line state decides whether you are chasing a line fault or an in-home fault." }));
   }
   if (P(a, "wifi_pattern") !== "n") {
-    steps.push({ title: "Compare Wi-Fi against a cable in the affected room", detail: "If the cable is fine, stop troubleshooting the line and check coverage, channel, and the device." });
+    steps.push(ag("wifi", { title: "Compare Wi-Fi against a cable in the affected room", detail: "If the cable is fine, stop troubleshooting the line and check coverage, channel, and the device." }));
   }
-  steps.push({ title: "Photograph the terminations and the drop entry", detail: "Evidence the next visit can compare against. Include the customer's meter or socket ID in the frame." });
-  steps.push({ title: "Agree the outcome in the room", detail: "State fixed, pending network work, or self-fix required. Hand over the post-visit summary before leaving." });
+  steps.push(ag("photo", { title: "Photograph the terminations and the drop entry", detail: "Evidence the next visit can compare against. Include the customer's meter or socket ID in the frame." }));
+  steps.push(ag("close", { title: "Agree the outcome in the room", detail: "State fixed, pending network work, or self-fix required. Hand over the post-visit summary before leaving." }));
   return steps;
 }
 
@@ -195,19 +216,16 @@ export function buildBrief(scenario, answers, profile, meta) {
 export function buildHandoff(brief, visit) {
   const v = visit || {};
   const closed = v.outcome === "fixed";
-  const defect = v.defect || "not recorded";
-  const needed = v.parts || "not recorded";
-  const explained = {
-    fixed: "Fault cleared on site. Customer showed the working service before you left.",
-    pending: "Temporary mitigation only. Needs a second appointment or network-side work.",
-    escalated: "Passed to the network team. No customer-facing fix was possible on site.",
-    left: "Left the site with the fault. The reason must be stated in the brief.",
-  }[v.outcome] || "Outcome not recorded.";
+  const defect = v.defect || "";
+  const needed = v.parts || "";
+  const explained = v.outcome
+    ? t("expl." + v.outcome)
+    : t("handoff.outcomeNotRecorded");
   return {
     brief,
     visit: v,
     explanation: explained,
-    reuse: closed ? "Reuse problem description and evidence only. No new visit required." : "Keep the evidence and the unresolved items. The next visit starts from this brief.",
+    reuse: t(closed ? "reuse.closed" : "reuse.open"),
     defect,
     needed,
   };
