@@ -181,11 +181,12 @@ textarea { resize: vertical; min-height: 64px; }
 .plainlist li { color: var(--ink-2); }
 .gaplist li { color: var(--ink-2); padding-left: 14px; position: relative; }
 .gaplist li::before { content: "?"; position: absolute; left: 0; color: var(--accent); font-family: var(--mono); font-size: 0.8rem; }
-.est { font-size: 0.8rem; color: var(--ink-3); margin-top: 9px; }
+.est { font-size: 0.86rem; color: var(--ink-2); margin-top: 10px; font-weight: 550; }
 .mini { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
 .mini th { text-align: left; font-weight: 600; color: var(--ink-3); padding: 0 8px 6px 0; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .mini td { padding: 7px 8px 7px 0; border-top: 1px solid var(--line-2); color: var(--ink-2); vertical-align: top; }
 .mini td:first-child { color: var(--ink); font-weight: 550; }
+.mini td:nth-child(2) { white-space: nowrap; }
 
 /* ---------- handoff ---------- */
 .handoff-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.86rem; padding: 5px 0; }
