@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linecheck: fault to technician brief</title>
+<meta name="description" content="Turn a mock fault report and a few checks into a technician brief, a visit agenda, and a post-visit handoff. Synthetic data only.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="#start">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 15l4-4 3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="8" r="1.6" fill="currentColor"/></svg>
+    <span>Linecheck</span>
+  </a>
+  <nav class="steps" aria-label="Workflow steps">
+    <button data-goto="start" class="step">Report</button>
+    <button data-goto="checks" class="step">Checks</button>
+    <button data-goto="brief" class="step">Brief</button>
+    <button data-goto="handoff" class="step">Handoff</button>
+  </nav>
+  <span class="synth-tag">Synthetic scenarios</span>
+</header>
+
+<main>
+  <!-- START -->
+  <section id="start" class="view">
+    <div class="split">
+      <div class="pane-left">
+        <h1>Stop sending the same fault back.</h1>
+        <p class="lede">A fault report becomes a technician brief with its evidence attached: what the last visit missed, what to measure first, what to bring, and what to leave in the room.</p>
+        <form id="report-form" class="stack" novalidate>
+          <div class="field">
+            <label for="scenario">Fault report <span class="req">required</span></label>
+            <select id="scenario" required></select>
+            <p class="help" id="scenario-help">Pick one of four fictional reports. Each carries prior visits, neighbours, and access notes like a real queue does.</p>
+          </div>
+          <fieldset class="field">
+            <legend>What the customer already tried</legend>
+            <label class="radio"><input type="radio" name="tries" value="none" checked> Nothing yet</label>
+            <label class="radio"><input type="radio" name="tries" value="some"> Router restart or cable reseat</label>
+            <label class="radio"><input type="radio" name="tries" value="many"> Several restarts, resets, and a support call</label>
+          </fieldset>
+          <fieldset class="field">
+            <legend>Has the fault come back after a previous visit?</legend>
+            <label class="radio"><input type="radio" name="repeats" value="unknown" checked> First visit / unknown</label>
+            <label class="radio"><input type="radio" name="repeats" value="yes"> Yes, it returned</label>
+          </fieldset>
+          <div class="field">
+            <label for="field">In the customer's own words <span class="opt">optional, unverified</span></label>
+            <textarea id="field" rows="3" placeholder="e.g. the back room drops my video call around 8pm"></textarea>
+            <p class="help">Free text is treated as an unverified report. It flags attention, it never becomes evidence for a cause.</p>
+          </div>
+          <button class="primary" type="submit">Open the brief</button>
+        </form>
+      </div>
+      <aside class="pane-right">
+        <h2 class="aside-h">This report</h2>
+        <div id="report-preview" class="preview" aria-live="polite"></div>
+        <div class="note">
+          <h3>What this tool will not do</h3>
+          <ul>
+            <li>Confirm coverage. Customer reports are not measured data.</li>
+            <li>Price the job. Time and parts are labelled estimates.</li>
+            <li>Name a cause without showing the evidence.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- CHECKS -->
+  <section id="checks" class="view" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Checks before the van moves</h2>
+        <p class="lede-sm">Four checks. Answer what you know and leave the rest. Every unanswered check shows up as a gap in the brief, not as a guess.</p>
+      </div>
+      <div class="head-actions">
+        <button class="ghost" id="preset-nff">Load NFF case</button>
+        <button class="ghost" id="preset-clean">Load clean-line case</button>
+      </div>
+    </div>
+    <div id="checklist" class="checklist"></div>
+    <div class="row-end">
+      <button class="ghost" data-goto="start">&larr; Back to report</button>
+      <button class="primary" id="to-brief">Build the brief</button>
+    </div>
+  </section>
+
+  <!-- BRIEF -->
+  <section id="brief" class="view" hidden>
+    <div class="view-head">
+      <div>
+        <div class="idline"><span id="brief-id" class="mono"></span><span class="badge" id="confidence"></span></div>
+        <h2 id="brief-customer"></h2>
+        <p class="lede-sm" id="brief-window"></p>
+      </div>
+      <div class="head-actions">
+        <button class="ghost" id="print-brief">Print / PDF</button>
+        <button class="ghost" id="copy-brief">Copy as text</button>
+      </div>
+    </div>
+
+    <div class="brief-grid">
+      <article class="col-main">
+        <section class="block">
+          <h3>The job</h3>
+          <dl class="facts">
+            <div><dt>Address</dt><dd id="b-address"></dd></div>
+            <div><dt>Line</dt><dd id="b-line" class="mono"></dd></div>
+            <div><dt>Access</dt><dd id="b-access"></dd></div>
+          </dl>
+        </section>
+
+        <section class="block">
+          <h3>What we know, and how we know it</h3>
+          <div id="b-findings"></div>
+        </section>
+
+        <section class="block">
+          <h3>Lead diagnosis</h3>
+          <div id="b-diagnosis"></div>
+        </section>
+
+        <section class="block">
+          <h3>Visit agenda</h3>
+          <ol id="b-agenda" class="agenda"></ol>
+        </section>
+      </article>
+
+      <aside class="col-side">
+        <section class="block tight">
+          <h3>Safety and access</h3>
+          <ul id="b-safety" class="flaglist"></ul>
+        </section>
+        <section class="block tight">
+          <h3>Bring on site</h3>
+          <ul id="b-parts" class="plainlist"></ul>
+          <p class="est mono" id="b-estimate"></p>
+        </section>
+        <section class="block tight">
+          <h3>Not yet established</h3>
+          <ul id="b-gaps" class="gaplist"></ul>
+        </section>
+        <section class="block tight">
+          <h3>Neighbouring lines</h3>
+          <table class="mini">
+            <thead><tr><th>Customer</th><th>Line</th><th>Note</th></tr></thead>
+            <tbody id="b-neighbours"></tbody>
+          </table>
+        </section>
+        <section class="block tight">
+          <h3>Prior visits</h3>
+          <ul id="b-prior" class="plainlist"></ul>
+        </section>
+      </aside>
+    </div>
+    <div class="row-end">
+      <button class="ghost" data-goto="checks">&larr; Back to checks</button>
+      <button class="primary" data-goto="handoff">Close the visit</button>
+    </div>
+  </section>
+
+  <!-- HANDOFF -->
+  <section id="handoff" class="view" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Post-visit handoff</h2>
+        <p class="lede-sm">What the next person needs, in one screen. Whatever you leave unrecorded appears here as open, not as done.</p>
+      </div>
+    </div>
+    <div class="split">
+      <div class="pane-left">
+        <form id="visit-form" class="stack" novalidate>
+          <fieldset class="field">
+            <legend>Outcome on site</legend>
+            <label class="radio"><input type="radio" name="outcome" value="fixed"> Fault cleared and customer showed working service</label>
+            <label class="radio"><input type="radio" name="outcome" value="pending"> Temporary mitigation, second visit needed</label>
+            <label class="radio"><input type="radio" name="outcome" value="escalated"> Escalated to the network team</label>
+            <label class="radio"><input type="radio" name="outcome" value="left"> Left with the fault</label>
+          </fieldset>
+          <div class="field">
+            <label for="defect">Defect found</label>
+            <input id="defect" type="text" placeholder="e.g. perished entry sleeve, water in the connector">
+          </div>
+          <div class="field">
+            <label for="parts">Parts used</label>
+            <input id="parts" type="text" placeholder="e.g. 2-pair drop cable, 8 m">
+          </div>
+          <div class="field">
+            <label for="followup">Next step for whoever picks this up</label>
+            <textarea id="followup" rows="2" placeholder="e.g. network team to check splitter port 12/7 during the 8pm peak"></textarea>
+          </div>
+          <button class="primary" id="build-handoff" type="submit">Build handoff</button>
+        </form>
+      </div>
+      <aside class="pane-right">
+        <h2 class="aside-h">Handoff preview</h2>
+        <div id="handoff-preview" class="preview" aria-live="polite"></div>
+        <div class="head-actions mt">
+          <button class="ghost" id="print-handoff" type="button">Print / PDF</button>
+          <button class="ghost" id="copy-handoff" type="button">Copy as text</button>
+        </div>
+      </aside>
+    </div>
+    <div class="row-end">
+      <button class="ghost" data-goto="brief">&larr; Back to brief</button>
+      <button class="ghost" id="reset">Start another report</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p><strong>Simulated scenarios.</strong> Every customer, address, line, visit, and measurement in Linecheck is fictional and built for demonstration. No provider data, customer record, or network telemetry is used. Time and parts figures are estimates, not quotes.</p>
+  <p class="foot-links"><a href="#how" id="open-method">Method and limits</a></p>
+</footer>
+
+<dialog id="method">
+  <article>
+    <h2>How Linecheck decides</h2>
+    <p>Four checks are scored against a fixed table of twelve possible faults. A fault only appears in the brief when a check actually supports it. A clean line with a healthy router cannot produce a drop-cable diagnosis, because no answer would justify it.</p>
+    <h3>Ordering, not proving</h3>
+    <p>Ranking decides what to look at first. It does not prove a cause. Every item in the brief carries the answer or record that pointed to it, so the technician can disagree with the reasoning line by line.</p>
+    <h3>Uncertainty is shown, not hidden</h3>
+    <p>Unanswered checks become "Not yet established". A brief stays Incomplete until speed at the router and line status are both measured, because a wiring conclusion without either is a guess dressed as a finding.</p>
+    <h3>What is fake here</h3>
+    <p>The customers, addresses, prior visits, neighbour lines, and measurements are synthetic. The decision table, the gaps, and the handoff logic are real and run in the browser.</p>
+    <button class="primary" id="close-method">Back to the brief</button>
+  </article>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
