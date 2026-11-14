@@ -14,6 +14,12 @@ The fault report is not the problem. The problem is what reaches the technician:
 
 Linecheck turns that into a brief that says what to measure first and why, what the last visit missed, what to bring, and what to leave behind.
 
+## Start here
+
+Open the app and click **See a repeat-visit brief**. One click opens a finished brief for the hardest case in the data: three prior visits, two closed "no fault found", a router already swapped. That is the whole tool in one screen.
+
+Then press **Back to checks** to change an answer and watch the diagnosis move. A clean line cannot produce a drop-cable diagnosis, because no answer would support it.
+
 ## How to use it
 
 1. **Report.** Pick one of four fictional reports. Mark what the customer already tried and whether the fault returned. Optionally paste the customer's own words. That text is labelled unverified and never becomes evidence.
@@ -72,4 +78,4 @@ node engine.test.mjs
 | `i18n.js` | Both language dictionaries and the `t()` lookup |
 | `ms.js` | Malay prose for scenarios, checks, findings, agenda |
 | `favicon.svg` | The mark, for the browser tab |
-| `engine.test.mjs` | Self-check: 32 assertions, run with `node` |
+| `engine.test.mjs` | Self-check: 41 assertions, run with `node` |
