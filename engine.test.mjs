@@ -109,3 +109,39 @@ const answered = { speed_at_router: "n", line_status: "up", router_light: "red",
 }
 
 console.log(`engine self-check: ${pass} assertions passed`);
+
+// 8. Print must reset the theme tokens to light, or a dark-mode brief prints
+//    white text on white paper. Read the stylesheet, since CSS cannot be run here.
+{
+  const css = (await import("node:fs")).readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+  const print = css.slice(css.indexOf("@media print"), css.indexOf("/* ---------- mobile ---------- */"));
+  ok(/:root,\s*\[data-theme="dark"\]\s*\{/.test(print), "print block must override both themes");
+  ok(/--paper:\s*#fff/.test(print) && /--ink:\s*#111/.test(print), "print forces light paper and dark ink");
+}
+
+// 9. The run must be persisted, or a reload at the customer's door loses it.
+{
+  const app = (await import("node:fs")).readFileSync(new URL("./app.js", import.meta.url), "utf8");
+  ok(/sessionStorage\.setItem/.test(app), "run is saved to sessionStorage");
+  ok(/const saveRun[\s\S]{0,200}show\(/.test(app) || /function show\(id\)[\s\S]*?saveRun\(\)/.test(app),
+     "saveRun is called from show(), so every view change records the run");
+  ok(/restoreRun\(\)/.test(app), "run is restored on load");
+}
+
+console.log(`all checks: ${pass} assertions passed`);
+
+// 10. Unverified free text may add a step, never a finding.
+//     The interesting case is a symptom the checks did not capture: the
+//     customer says "back room", the wifi check was never the point.
+{
+  const s = getScenario("S-4471");
+  const base = { speed_at_router: "n", line_status: "up", router_light: "red", wifi_pattern: "n" };
+  const quiet = buildBrief(s, base, { ...noAns, steps: [] }, {});
+  const hint = buildBrief(s, base, { ...noAns, steps: ["wifi"] }, {});
+  const hasWifi = (b) => b.agenda.some((x) => /Wi-Fi against a cable/i.test(x.title));
+  ok(!hasWifi(quiet), "no wifi step when the check already ruled wifi out");
+  ok(hasWifi(hint), "free-text hint restores the wifi step");
+  ok(hint.diagnosis.key === quiet.diagnosis.key, "free text must not change the diagnosis");
+  ok(hint.findings.length === quiet.findings.length, "free text must not create a finding");
+}
+console.log(`total: ${pass} assertions passed`);

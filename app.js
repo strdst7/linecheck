@@ -34,10 +34,40 @@ const sc = (s) => {
 const state = {
   scenarioId: SCENARIO_LIST[0].id,
   answers: {},
-  profile: { repeats: "unknown", tries: "none", field: "" },
+  profile: { repeats: "unknown", tries: "none", field: "", steps: [] },
+  signalSteps: [],
   brief: null,
   handoff: null,
   view: "start",
+};
+
+/* ---------- session restore ----------
+   A refresh at the customer's door must not lose the run. sessionStorage
+   survives reload, dies with the tab, and leaves nothing on a shared device. */
+const SKEY = "linecheck-run";
+const saveRun = () => {
+  try {
+    sessionStorage.setItem(SKEY, JSON.stringify({
+      scenarioId: state.scenarioId, answers: state.answers, profile: state.profile, view: state.view,
+    }));
+  } catch { /* private mode: the run simply is not restored */ }
+};
+const restoreRun = () => {
+  try {
+    const r = JSON.parse(sessionStorage.getItem(SKEY) || "null");
+    if (!r || !getScenario(r.scenarioId)) return false;
+    state.scenarioId = r.scenarioId;
+    state.answers = r.answers || {};
+    state.profile = { repeats: "unknown", tries: "none", field: "", ...r.profile };
+    state.view = r.view && r.view !== "start" ? r.view : "checks";
+    sel.value = r.scenarioId;
+    $("#field").value = state.profile.field || "";
+    document.querySelector(`input[name="repeats"][value="${state.profile.repeats}"]`).checked = true;
+    document.querySelector(`input[name="tries"][value="${state.profile.tries}"]`).checked = true;
+    renderChecks();
+    if (state.view === "handoff") state.brief = makeBrief();
+    return true;
+  } catch (err) { console.warn("Linecheck: run not restored", err); return false; }
 };
 
 /* ---------- navigation ---------- */
@@ -51,6 +81,7 @@ function show(id) {
   window.scrollTo({ top: 0, behavior: "instant" });
   if (id === "brief") renderBrief();
   if (id === "handoff") renderHandoff();
+  saveRun();
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-goto]");
@@ -76,6 +107,49 @@ function previewReport() {
 }
 sel.addEventListener("change", previewReport);
 
+// One click to the payoff: load the repeat-visit case with its checks answered
+// and open the finished brief. A reviewer should not have to fill a form first.
+$("#demo-run").addEventListener("click", () => {
+  state.scenarioId = "S-4471";
+  sel.value = "S-4471";
+  state.profile = { repeats: "yes", tries: "many", field: "", steps: [] };
+  document.querySelector('input[name="repeats"][value="yes"]').checked = true;
+  document.querySelector('input[name="tries"][value="many"]').checked = true;
+  $("#field").value = "";
+  renderSignal();
+  state.answers = { speed_at_router: "n", line_status: "up", router_light: "red", wifi_pattern: "nt" };
+  renderChecks();
+  state.brief = makeBrief();
+  state.handoff = null;
+  show("brief");
+});
+
+/* Free text is unverified, but it is not useless: a time cue or a location cue
+   adds a step to the agenda. The reader sees exactly what it did. */
+const SIGNALS = [
+  { key: "signal.time", re: /\b(\d{1,2}\s?(am|pm)|evening|night|peak|busy|puncak|petang|malam|malam)\b/i, steps: ["speed"] },
+  { key: "signal.room", re: /\b(back room|bedroom|upstairs|downstairs|garden|far|away|bilik|tingkat|jauh)\b/i, steps: ["wifi"] },
+  { key: "signal.repeat", re: /\b(again|keeps|every|returns?|recurring|berulang|lagi|setiap)\b/i, steps: [] },
+];
+function readSignal(text) {
+  const s = (text || "").trim();
+  if (!s) return { keys: [], steps: [] };
+  const hits = SIGNALS.filter((x) => x.re.test(s));
+  return {
+    keys: hits.map((h) => h.key),
+    steps: [...new Set(hits.flatMap((h) => h.steps))],
+  };
+}
+function renderSignal() {
+  const el = $("#field-signal");
+  const sig = readSignal($("#field").value);
+  const keys = sig.keys.length ? sig.keys : (($("#field").value.trim()) ? ["signal.none"] : []);
+  el.hidden = !keys.length;
+  el.innerHTML = keys.map((k) => `<span>${esc(t(k))}</span>`).join("");
+  state.signalSteps = sig.steps;
+}
+$("#field").addEventListener("input", renderSignal);
+
 $("#report-form").addEventListener("submit", (e) => {
   e.preventDefault();
   state.scenarioId = sel.value;
@@ -84,6 +158,7 @@ $("#report-form").addEventListener("submit", (e) => {
     repeats: document.querySelector('input[name="repeats"]:checked').value,
     tries: document.querySelector('input[name="tries"]:checked').value,
     field: $("#field").value.trim(),
+    steps: state.signalSteps || [],
   };
   state.brief = null;
   state.handoff = null;
@@ -132,11 +207,13 @@ $("#checklist").addEventListener("click", (e) => {
   why.hidden = !state.answers[check];
   state.brief = null;
   state.handoff = null;
+  saveRun();
 });
 
 const loadPreset = (answers) => {
   state.answers = { ...answers };
   state.brief = null;
+  state.handoff = null;
   renderChecks();
   show("checks");
 };
@@ -325,6 +402,7 @@ $("#print-handoff").addEventListener("click", () => printView("handoff"));
 
 $("#reset").addEventListener("click", () => {
   state.answers = {}; state.brief = null; state.handoff = null;
+  try { sessionStorage.removeItem("linecheck-run"); } catch {}
   $("#visit-form").reset(); $("#field").value = "";
   renderChecks(); previewReport(); show("start");
 });
@@ -373,6 +451,8 @@ document.querySelectorAll("[data-lang]").forEach((b) =>
   b.addEventListener("click", () => applyLang(b.dataset.lang)));
 
 /* ---------- init ---------- */
+// Restore before the first paint of the workflow, so the user lands where they left.
+const restored = restoreRun();
 const browserMs = (navigator.language || "").toLowerCase().startsWith("ms");
 applyLang(localStorage.getItem("linecheck-lang") || (browserMs ? "ms" : "en"));
-show("start");
+show(restored ? state.view : "start");

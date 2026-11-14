@@ -67,7 +67,12 @@
       <div class="pane-left">
         <h1 data-i18n="start.h1">Stop sending the same fault back.</h1>
         <p class="lede" data-i18n="start.lede">A fault report becomes a technician brief with its evidence attached.</p>
+        <div class="demo-row">
+          <button class="primary" id="demo-run" data-i18n="start.demo">See a repeat-visit brief</button>
+          <span class="demo-note" data-i18n="start.demoNote">Three prior visits, two closed no-fault-found. Opens the finished brief.</span>
+        </div>
         <form id="report-form" class="stack" novalidate>
+          <p class="form-lead" data-i18n="start.orOwn">Or work your own report:</p>
           <div class="field">
             <label for="scenario"><span data-i18n="start.scenario">Fault report</span><span class="req" data-i18n="start.required">required</span></label>
             <select id="scenario" required></select>
@@ -88,6 +93,7 @@
             <label for="field"><span data-i18n="start.words">In the customer's own words</span><span class="opt" data-i18n="start.wordsOpt">optional, unverified</span></label>
             <textarea id="field" rows="3"></textarea>
             <p class="help" data-i18n="start.wordsHelp">Free text is treated as an unverified report.</p>
+            <p class="signal" id="field-signal" hidden></p>
           </div>
           <button class="primary" type="submit" data-i18n="start.submit">Open the brief</button>
         </form>
@@ -102,6 +108,7 @@
             <li data-i18n="start.notDo.2">Price the job.</li>
             <li data-i18n="start.notDo.3">Name a cause without evidence.</li>
           </ul>
+          <p class="note-foot" data-i18n="start.notDoFoot">Every finding cites the answer or record behind it, so you can overrule the reasoning line by line.</p>
         </div>
       </aside>
     </div>

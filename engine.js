@@ -147,7 +147,7 @@ export function rank(scenario, answers) {
 
 /* ---------- agenda ----------
    Six steps that put unmeasured items first and stop repeating prior work. */
-export function agenda(scenario, answers) {
+export function agenda(scenario, answers, profile) {
   const a = answers || {};
   const steps = [];
   const nff = scenario.prevVisits.filter((v) => v.conclusion === "NFF");
@@ -165,13 +165,16 @@ export function agenda(scenario, answers) {
     ? MS_AGENDA.review.detailNff.replace("{ids}", nff.map((v) => v.id).join(", "))
     : MS_AGENDA.review.detailNone;
 
-  if (P(a, "speed_at_router") !== "y") {
+  // Steps the unverified free text asked for are still added, because the text
+  // is a reason to look, not a reason to conclude.
+  const hinted = (profile && profile.steps) || [];
+  if (P(a, "speed_at_router") !== "y" || hinted.includes("speed")) {
     steps.push(ag("speed", { title: "Test speed at the router during the customer's busy hour", detail: "Wired device at the router. Record the time, plan speed, and result. Peak-hour numbers are the whole point." }));
   }
   if (P(a, "line_status") === "unknown") {
     steps.push(ag("line", { title: "Confirm line status from the access network before the visit", detail: "Line state decides whether you are chasing a line fault or an in-home fault." }));
   }
-  if (P(a, "wifi_pattern") !== "n") {
+  if (P(a, "wifi_pattern") !== "n" || hinted.includes("wifi")) {
     steps.push(ag("wifi", { title: "Compare Wi-Fi against a cable in the affected room", detail: "If the cable is fine, stop troubleshooting the line and check coverage, channel, and the device." }));
   }
   steps.push(ag("photo", { title: "Photograph the terminations and the drop entry", detail: "Evidence the next visit can compare against. Include the customer's meter or socket ID in the frame." }));
@@ -209,7 +212,7 @@ export function buildBrief(scenario, answers, profile, meta) {
     synthetic: true,
   };
 
-  return { scenario, meta: metaOut, findings: f, diagnosis: r.top, alternatives: r.rest, agenda: agenda(scenario, answers), unresolved, confidence, profile };
+  return { scenario, meta: metaOut, findings: f, diagnosis: r.top, alternatives: r.rest, agenda: agenda(scenario, answers, profile), unresolved, confidence, profile };
 }
 
 /* ---------- post-visit handoff ---------- */
