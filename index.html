@@ -147,6 +147,24 @@
       </div>
     </div>
 
+    <div class="statbar">
+      <div class="stat stat-lead">
+        <span class="stat-k" data-i18n="brief.diagnosis">Lead diagnosis</span>
+        <span class="stat-v" id="s-diag"></span>
+      </div>
+      <div class="stat">
+        <span class="stat-k" data-i18n="brief.skill">Skill</span>
+        <span class="stat-v" id="s-skill"></span>
+      </div>
+      <div class="stat">
+        <span class="stat-k" data-i18n="brief.estimate">Estimate</span>
+        <span class="stat-v mono" id="s-time"></span>
+      </div>
+    </div>
+    <p class="gap-note" id="s-gap-row"><span class="gap-k" data-i18n="brief.gaps">Not yet established</span><span id="s-gap"></span></p>
+
+    <div id="b-safety-banner" class="safety-banner" hidden></div>
+
     <div class="brief-grid">
       <article class="col-main">
         <section class="block">
@@ -172,10 +190,6 @@
       </article>
 
       <aside class="col-side">
-        <section class="block tight">
-          <h3 data-i18n="brief.safety">Safety and access</h3>
-          <ul id="b-safety" class="flaglist"></ul>
-        </section>
         <section class="block tight">
           <h3 data-i18n="brief.parts">Bring on site</h3>
           <ul id="b-parts" class="plainlist"></ul>

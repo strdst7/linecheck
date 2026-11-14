@@ -224,6 +224,45 @@ textarea { resize: vertical; min-height: 64px; }
 .why[hidden] { display: none; }
 .row-end { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 26px; }
 
+/* ---------- brief dashboard ---------- */
+/* The at-a-glance layer: four answers, then any safety liability, then prose. */
+.statbar {
+  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1px;
+  background: var(--line); border: 1px solid var(--line); margin-bottom: 16px;
+}
+.stat { background: var(--card); padding: 12px 14px; display: grid; gap: 3px; min-width: 0; }
+.stat-k {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600;
+}
+.stat-v {
+  font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.stat-lead .stat-v { font-size: 1.05rem; }
+/* A gap is a note, not a metric: one line under the strip, not a quarter of it. */
+.gap-note {
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  font-size: 0.82rem; color: var(--accent); margin: 2px 0 20px; padding-left: 2px;
+}
+.gap-k {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; color: var(--accent);
+}
+.gap-note.is-clear { color: var(--ok); }
+.gap-note.is-clear .gap-k { color: var(--ok); }
+
+.safety-banner {
+  display: grid; gap: 6px; padding: 12px 14px; margin-bottom: 18px;
+  background: var(--flag-soft); border-left: 3px solid var(--flag);
+}
+.safety-k {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--flag); font-weight: 700;
+}
+.safety-banner ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.safety-banner li { font-size: 0.85rem; color: var(--flag); }
+
 /* ---------- brief ---------- */
 .idline { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; color: var(--ink-3); margin-bottom: 6px; flex-wrap: wrap; }
 .badge { font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 7px; border: 1px solid currentColor; white-space: nowrap; }
@@ -331,6 +370,7 @@ dialog h3 { font-size: 0.9rem; margin-top: 6px; }
 /* ---------- mobile ---------- */
 @media (max-width: 860px) {
   .split, .brief-grid { grid-template-columns: 1fr; gap: 26px; }
+  .statbar { grid-template-columns: 1fr; }
   .check { grid-template-columns: 1fr; gap: 12px; }
   .bar { height: auto; flex-wrap: wrap; padding: 10px 14px; gap: 10px; }
   .steps { order: 3; width: 100%; overflow-x: auto; }

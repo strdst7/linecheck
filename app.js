@@ -20,7 +20,9 @@ const sc = (s) => {
     reported: m?.report ?? s.report.reported,
     prevVisits: s.prevVisits.map((v) => ({
       ...v,
-      found: m?.prevFound?.[v.conclusion] ?? MS_PRIOR_VISIT[v.found] ?? v.found,
+      // Malay gloss only in Malay. This map was applied unconditionally and
+      // leaked Malay into the English UI.
+      found: isMs() ? (m?.prevFound?.[v.conclusion] ?? MS_PRIOR_VISIT[v.found] ?? v.found) : v.found,
     })),
     customers: s.customers.map((c) => ({
       ...c,
@@ -265,6 +267,22 @@ function renderBrief() {
 
   const d = b.diagnosis;
   const dLabel = d ? d.copy.label : "";
+  // Status strip: the four things a technician needs before reading any prose.
+  const gapsEarly = b.unresolved.map((u) => (isMs() && MS_UNRESOLVED[u]) || u);
+  $("#s-diag").textContent = d ? dLabel : t("brief.noDiag");
+  $("#s-skill").textContent = d ? d.copy.skill : "—";
+  $("#s-time").textContent = d ? (d.noVisit ? t("brief.noVisit") : `${d.min}${isMs() ? " hingga " : "–"}${d.max} min`) : "—";
+  const gapRow = $("#s-gap-row");
+  gapRow.classList.toggle("is-clear", !gapsEarly.length);
+  $("#s-gap").textContent = gapsEarly.length
+    ? gapsEarly.join(" · ")
+    : t("brief.noGaps");
+  // Safety is a liability item, not sidebar furniture.
+  const banner = $("#b-safety-banner");
+  banner.hidden = !s.safety.length;
+  banner.innerHTML = s.safety.length
+    ? `<span class="safety-k">${esc(t("brief.safety"))}</span><ul>${s.safety.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+    : "";
   const dSkill = d ? d.copy.skill : "";
   const gaps = b.unresolved.map((u) => (isMs() && MS_UNRESOLVED[u]) || u);
   $("#b-diagnosis").innerHTML = d ? `
@@ -280,7 +298,6 @@ function renderBrief() {
   ` : `<div class="diag-none">${esc(t("brief.noDiag"))} ${gaps.length ? esc(t("brief.unanswered", { list: gaps.join(", ") })) : ""}</div>`;
 
   $("#b-agenda").innerHTML = b.agenda.map((x) => `<li><div><b>${esc(x.title)}</b><span>${esc(x.detail)}</span></div></li>`).join("");
-  $("#b-safety").innerHTML = s.safety.map((x) => `<li>${esc(x)}</li>`).join("");
   $("#b-parts").innerHTML = d && d.copy.parts.length ? d.copy.parts.map((x) => `<li>${esc(x)}</li>`).join("") : `<li>${esc(t("brief.noParts"))}</li>`;
   $("#b-estimate").textContent = d && !d.noVisit ? t("brief.estLine", { min: d.min, max: d.max }) : "";
   $("#b-gaps").innerHTML = gaps.length

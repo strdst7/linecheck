@@ -145,3 +145,19 @@ console.log(`all checks: ${pass} assertions passed`);
   ok(hint.findings.length === quiet.findings.length, "free text must not create a finding");
 }
 console.log(`total: ${pass} assertions passed`);
+
+// 11. The prior-visit Malay map must be gated on language, not applied always.
+//     It leaked BM into the English UI. Assert the guard in the source, since
+//     the mapping lives in app.js and needs a DOM.
+{
+  const app = (await import("node:fs")).readFileSync(new URL("./app.js", import.meta.url), "utf8");
+  ok(/isMs\(\)\s*\?\s*\(m\?\.prevFound/.test(app),
+     "prior-visit translation is gated on isMs()");
+  const { MS_PRIOR_VISIT } = await import("./ms.js");
+  const { getScenario } = await import("./scenarios.js");
+  const src = getScenario("S-4471").prevVisits.map((v) => v.found);
+  const mapped = src.map((f) => MS_PRIOR_VISIT[f] || f);
+  ok(mapped[0] !== src[0], "the Malay map does translate something");
+  ok(mapped[0].startsWith("Dicaj"), "and it translates to Malay");
+}
+console.log(`grand total: ${pass} assertions passed`);
